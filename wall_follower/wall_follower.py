@@ -16,7 +16,7 @@ class WallFollower(Node):
         super().__init__("wall_follower")
         # Declare parameters to make them available for use
         self.declare_parameter("scan_topic", "default")
-        self.declare_parameter("drive_topic", "default")
+        self.declare_parameter("drive_topic", "/vesc/input/navigation")
         self.declare_parameter("side", "default")
         self.declare_parameter("velocity", "default")
         self.declare_parameter("desired_distance", "default")
@@ -46,6 +46,7 @@ class WallFollower(Node):
         """
         Process Lidar data
         """
+
         ranges = msg.ranges
         angle_min = msg.angle_min
         angle_max = msg.angle_max
@@ -77,8 +78,10 @@ class WallFollower(Node):
         drive_msg = AckermannDriveStamped()
         drive_msg.header.stamp = self.get_clock().now().to_msg()
         drive_msg.drive.speed = detect
+        self.get_logger().info("speed: " + str(detect))
+        self.get_logger().info("steer: " + str(steer))
         # Positive steering angle goes left
-        drive_msg.drive.steering_angle = 0.0
+        drive_msg.drive.steering_angle = steer
 
         self.publisher.publish(drive_msg)
         self.dt = time.time() - curr_time
