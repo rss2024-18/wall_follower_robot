@@ -16,7 +16,6 @@ from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
 
-
 class WallTest(Node):
 
     
@@ -75,6 +74,7 @@ class WallTest(Node):
 
         # A subscriber to laser scans
         self.create_subscription(LaserScan, self.SCAN_TOPIC, self.laser_callback, 1)
+        self.create_subscription(AckermannDriveStamped, self.DRIVE_TOPIC, self.controller_callback, 1)
 
         self.START_POSE = [self.START_x, self.START_y, self.START_z]
         self.END_POSE = [self.END_x, self.END_y]
@@ -82,6 +82,9 @@ class WallTest(Node):
 
         self.moved = False
         self.buffer_count = 0
+        
+        self.heading = 0.0
+        self.headings = []
     
     def place_car(self, pose):
         p = Pose()
@@ -99,6 +102,8 @@ class WallTest(Node):
         self.get_logger().info('Placed Car: %f' % (p.position.x))
         self.get_logger().info('Placed Car: %f' % (p.position.y))
 
+    def controller_callback(self, control):
+        self.heading = control.drive.steering_angle
 
     def laser_callback(self, laser_scan):        
 
@@ -171,7 +176,7 @@ class WallTest(Node):
         # self.get_logger().info(
         #             f'Time: {time_d}, Max time: {self.max_time_per_test}')
 
-        
+        self.headings.append([time_d] + [self.heading])
         
         if time_d > self.max_time_per_test:
             self.get_logger().info("Test timed out!")
@@ -189,8 +194,12 @@ class WallTest(Node):
             stop.drive.speed = 0.
             stop.drive.steering_angle = 0.
             self.drive_pub.publish(stop)
-            self.saves[self.TEST_NAME] = encode(np.array(self.positions))
-            np.savez_compressed(self.TEST_NAME+"_log", **self.saves)
+            # self.saves[self.TEST_NAME] = encode(np.array(self.positions))
+            # self.saves[self.TEST_NAME] = np.array(self.positions)
+            # np.savez_compressed(self.TEST_NAME+"_log", **self.saves)
+            subfolder = 'charles'
+            np.savez("./test_data/" + subfolder + "/"+self.TEST_NAME+"_log", np.array(self.positions))
+            np.savez("./test_data/" + subfolder + "/"+self.TEST_NAME+"_steer", np.array(self.headings))
             raise SystemExit
 
     
