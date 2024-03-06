@@ -70,6 +70,8 @@ class WallFollower(Node):
         self.VELOCITY = self.get_parameter('velocity').get_parameter_value().double_value
         self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
         self.laserScan = msg
+        self.detect = self.safety_control(msg)
+
         #self.get_logger().info('HEARD ANYTHING')
     
     def timer_callback(self):
@@ -115,8 +117,10 @@ class WallFollower(Node):
         #self.get_logger().info("better wall dist " + str(wall_dist))
         #self.get_logger().info("error  " + str(error))
         #write drive instructions
+            
+
         msg = AckermannDriveStamped()
-        msg.drive.speed = self.safety_controller(self.laserScan.ranges)
+        msg.drive.speed = self.detect
 
         change = self.pid(error, self.prev_error)
         self.prev_error = error
@@ -212,18 +216,6 @@ class WallFollower(Node):
 
         return length
     
-    def safety_controller(self, msg):
-        """
-        Compute distance to front wall and stop the car if the wall is too close
-        """
-        distance_needed_to_stop = self.VELOCITY * 1/3
-        front_data = np.array(self.return_data(msg.ranges, 1))
-        middle_angles = np.array(np.cos(self.return_data(np.arange(msg.angle_min, msg.angle_max, msg.angle_increment).tolist(), 1)))
-        true_dist = np.multiply(middle_angles, front_data)
-        if np.median(true_dist) < distance_needed_to_stop:
-            return 0.0
-        return self.VELOCITY
-    
     def slice_scan(self, ranges):
         """
         slice scan into managable pieces a
@@ -245,8 +237,23 @@ class WallFollower(Node):
             return np.array(data["ms"])
         if self.SIDE == -1:
             return np.array(data["brs"])
-        
         return np.flip(np.array(data["bls"]))
+
+    def safety_control(self, msg):
+        """
+        Compute distance to front wall and stop the car if the wall is too close
+        """
+        # distance from wall to stop the car
+        distance_needed_to_stop = self.VELOCITY * 1/3
+        # LIDAR scans from the front of the car
+        front_data = np.array(self.return_data(msg.ranges, 1))
+        # Angle values of the lidar scans
+        middle_angles = np.array(np.cos(self.return_data(np.arange(msg.angle_min, msg.angle_max, msg.angle_increment).tolist(), 1)))
+        # scaled distance due to angle
+        true_dist = np.multiply(middle_angles, front_data)
+        if np.median(true_dist) < distance_needed_to_stop:
+            return 0.0
+        return self.VELOCITY
 
 def main():
     
@@ -259,3 +266,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
