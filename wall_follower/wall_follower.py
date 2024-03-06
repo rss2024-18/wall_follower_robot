@@ -70,7 +70,6 @@ class WallFollower(Node):
         self.VELOCITY = self.get_parameter('velocity').get_parameter_value().double_value
         self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
         self.laserScan = msg
-        self.detect = self.safety_control(msg)
 
         #self.get_logger().info('HEARD ANYTHING')
     
@@ -120,7 +119,6 @@ class WallFollower(Node):
             
 
         msg = AckermannDriveStamped()
-        msg.drive.speed = self.detect
 
         change = self.pid(error, self.prev_error)
         self.prev_error = error
@@ -134,7 +132,9 @@ class WallFollower(Node):
 
         self.steering_angle = steer
         self.get_logger().info("steer " + str(steer))
-
+        msg.header.stamp = rclpy.time.Time.to_msg()
+        msg.header.frame_id = self.laserSCan.header.frame_id
+        msg.drive.speed = 1.0 
         msg.drive.steering_angle = self.steering_angle
         self.publisher_.publish(msg)
         #self.get_logger().info('Steering Angle: "%s"' % msg.drive.steering_angle)
@@ -238,22 +238,6 @@ class WallFollower(Node):
         if self.SIDE == -1:
             return np.array(data["brs"])
         return np.flip(np.array(data["bls"]))
-
-    def safety_control(self, msg):
-        """
-        Compute distance to front wall and stop the car if the wall is too close
-        """
-        # distance from wall to stop the car
-        distance_needed_to_stop = self.VELOCITY * 1/3
-        # LIDAR scans from the front of the car
-        front_data = np.array(self.return_data(msg.ranges, 1))
-        # Angle values of the lidar scans
-        middle_angles = np.array(np.cos(self.return_data(np.arange(msg.angle_min, msg.angle_max, msg.angle_increment).tolist(), 1)))
-        # scaled distance due to angle
-        true_dist = np.multiply(middle_angles, front_data)
-        if np.median(true_dist) < distance_needed_to_stop:
-            return 0.0
-        return self.VELOCITY
 
 def main():
     
