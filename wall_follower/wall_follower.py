@@ -2,6 +2,7 @@
 import numpy as np
 import rclpy
 import math
+import random
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
@@ -11,7 +12,6 @@ from wall_follower.visualization_tools import VisualizationTools
 
 
 class WallFollower(Node):
-    WALL_TOPIC = "/wall"
     def __init__(self):
         super().__init__("wall_follower")
         #Declare attributes 
@@ -32,6 +32,8 @@ class WallFollower(Node):
         self.lastm = 0.0
         self.lastlastm = 0.0
 
+        self.visualize_line = True
+
         # Declare parameters to make them available for use
         self.declare_parameter("scan_topic", "default")
         self.declare_parameter("drive_topic", "default")
@@ -45,7 +47,8 @@ class WallFollower(Node):
         self.SIDE = self.get_parameter('side').get_parameter_value().integer_value
         self.VELOCITY = self.get_parameter('velocity').get_parameter_value().double_value
         self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
-		
+        self.WALL_TOPIC = "/wall"
+
 	    # TODO: Initialize your publishers and subscribers here
         self.subscription = self.create_subscription(
             LaserScan,
@@ -132,9 +135,9 @@ class WallFollower(Node):
 
         self.steering_angle = steer
         self.get_logger().info("steer " + str(steer))
-        msg.header.stamp = rclpy.time.Time.to_msg()
-        msg.header.frame_id = self.laserSCan.header.frame_id
-        msg.drive.speed = 1.0 
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = self.laserScan.header.frame_id
+        msg.drive.speed = self.VELOCITY * 1.3 * max(0.5, 1 - 0.1 * error ** 2)
         msg.drive.steering_angle = self.steering_angle
         self.publisher_.publish(msg)
         #self.get_logger().info('Steering Angle: "%s"' % msg.drive.steering_angle)
@@ -168,8 +171,30 @@ class WallFollower(Node):
 
         return (right_range, middle_range, left_range, rmin_ang, mmin_ang, lmin_ang)
 
+    def ransac(self,X, y, n_iterations=100, sample_size=20, inlier_threshold=1.0):
+        
+        best_mod = None
+        best_inliers = None
+        max_inliers = 0
+
+        for _ in range(n_iterations):
+            random_indices = random.sample(range(len(X)), sample_size)
+            x_sam = X[random_indices]
+            y_sam = y[random_indices]
+
+            model = np.polyfit(x_sam, y_sam, 1)
+
+            residuals = np.abs(y - np.polyval(model, X))
+            inliers = np.where(residuals < inlier_threshold)[0]
+
+            if len(inliers) > max_inliers:
+                max_inliers = len(inliers)
+                best_mod = model
+                best_inliers = inliers
+
+        return best_mod, best_inliers
+
     def closest_spot(self, range, min_angle, groups):
-        #determine which side the wall is on by averaging which side is reading closer
         ranges = np.array(range)
         # Find the indices of the start of each group consecutive values
         start_indices = np.arange(len(ranges) - (groups-1))
