@@ -32,8 +32,6 @@ class WallFollower(Node):
         self.lastm = 0.0
         self.lastlastm = 0.0
 
-        self.visualize_line = True
-
         # Declare parameters to make them available for use
         self.declare_parameter("scan_topic", "default")
         self.declare_parameter("drive_topic", "default")
@@ -62,7 +60,7 @@ class WallFollower(Node):
         # a publisher for our line marker
         self.line_pub = self.create_publisher(Marker, self.WALL_TOPIC, 1)
 
-        timer_period = 0.05 #seconds
+        timer_period = 0.01 #seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
 
@@ -109,18 +107,16 @@ class WallFollower(Node):
 
         wall_close = np.mean(mmin_values)
         if wall_close < 1.5: #check if theres a wall in front of you
-            self.get_logger().info('WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL')
-            self.get_logger().info('original error' + str(error))
+            #self.get_logger().info('WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL')
+            #self.get_logger().info('original error' + str(error))
             error = error - wall_close
-            self.get_logger().info('new error' + str(error))
+            #self.get_logger().info('new error' + str(error))
 
 
         #self.get_logger().info("wall dist " + str(wall_dist))
         #self.get_logger().info("better wall dist " + str(wall_dist))
         #self.get_logger().info("error  " + str(error))
         #write drive instructions
-            
-
         msg = AckermannDriveStamped()
 
         change = self.pid(error, self.prev_error)
@@ -134,10 +130,10 @@ class WallFollower(Node):
             steer = -0.34
 
         self.steering_angle = steer
-        self.get_logger().info("steer " + str(steer))
+        #self.get_logger().info("steer " + str(steer))
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.laserScan.header.frame_id
-        msg.drive.speed = self.VELOCITY * 1.3 * max(0.5, 1 - 0.1 * error ** 2)
+        msg.drive.speed = self.VELOCITY #* 1.3 * max(0.5, 1 - 0.1 * error ** 2)
         msg.drive.steering_angle = self.steering_angle
         self.publisher_.publish(msg)
         #self.get_logger().info('Steering Angle: "%s"' % msg.drive.steering_angle)
@@ -173,6 +169,7 @@ class WallFollower(Node):
 
     def closest_spot(self, range, min_angle, groups):
         ranges = np.array(range)
+        ranges = self.clean_data(ranges, 0.15)
         # Find the indices of the start of each group consecutive values
         start_indices = np.arange(len(ranges) - (groups-1))
 
@@ -189,7 +186,24 @@ class WallFollower(Node):
         min_angles = (min_indices * self.laserScan.angle_increment) + np.ones(len(min_indices))*min_angle
 
         return (min_values, min_angles)
-        
+    
+    def clean_data (self, arr, threshold):
+        """
+            parses array arr and replaces values that are below threshold with the value immediatley next to them
+            for removing noisy data in the lidar 
+            arr must be a numpy array
+        """
+        # Create a boolean mask where values are less than the threshold
+        mask = arr < threshold
+        # Create an array containing the values that will be replaced
+        replaced_values = arr[mask]
+        self.get_logger().info('replaced'+str(replaced_values))
+        # Replace values below the threshold with the value next to it
+        #arr[mask] = np.roll(arr, 1)[mask]
+         # Replace values below the threshold with the input replacement value
+        arr[mask] = self.laserScan.range_max
+        return arr
+
     def polar2cart(self, points, angles):
         #transform the polar coordinates of the robot to a local cartesian frame 
 
@@ -230,16 +244,16 @@ class WallFollower(Node):
         brs = ranges[0:back_front_divider]
         return {'brs': brs, "ms": ms, "bls" : bls}
     
-    def return_data(self, data, flag = 0):
-        """
-        Returns appropriate data slice for side and speed
-        """
-        data = self.slice_scan(data)
-        if flag:
-            return np.array(data["ms"])
-        if self.SIDE == -1:
-            return np.array(data["brs"])
-        return np.flip(np.array(data["bls"]))
+    # def return_data(self, data, flag = 0):
+    #     """
+    #     Returns appropriate data slice for side and speed
+    #     """
+    #     data = self.slice_scan(data)
+    #     if flag:
+    #         return np.array(data["ms"])
+    #     if self.SIDE == -1:
+    #         return np.array(data["brs"])
+    #     return np.flip(np.array(data["bls"]))
 
 def main():
     
