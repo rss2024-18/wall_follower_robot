@@ -114,7 +114,7 @@ class WallFollower(Node):
         error = abs(dist) - self.DESIRED_DISTANCE
 
         wall_close = np.mean(mmin_values)
-        if wall_close < 1.5: #check if theres a wall in front of you
+        if wall_close < 2.0: #check if theres a wall in front of you
             self.get_logger().info('WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL')
             #self.get_logger().info('original error' + str(error))
             error = error - wall_close
@@ -150,7 +150,7 @@ class WallFollower(Node):
     
     def slice_and_plot(self, msg):
         ## slice
-        min_angle = math.pi*2/3
+        min_angle = math.pi*1/3
         ranges = np.clip(np.array(msg.ranges), msg.range_min, msg.range_max)
         lower, upper = min(self.SIDE*math.pi/6, self.SIDE*min_angle), max(self.SIDE*math.pi/6, self.SIDE*min_angle)
         li, ui = int((lower - msg.angle_min) / msg.angle_increment), int((upper - msg.angle_min) / msg.angle_increment)

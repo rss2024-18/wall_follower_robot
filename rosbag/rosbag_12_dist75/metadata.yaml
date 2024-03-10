@@ -1,0 +1,19 @@
+rosbag2_bagfile_information:
+  version: 4
+  storage_identifier: sqlite3
+  relative_file_paths:
+    - rosbag_12_dist75_0.db3
+  duration:
+    nanoseconds: 18315158187
+  starting_time:
+    nanoseconds_since_epoch: 1710109758372622562
+  message_count: 413
+  topics_with_message_count:
+    - topic_metadata:
+        name: /vesc/input/navigation
+        type: ackermann_msgs/msg/AckermannDriveStamped
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 413
+  compression_format: ""
+  compression_mode: ""
