@@ -68,7 +68,7 @@ class WallFollower(Node):
     # TODO: Write your callback functions here  
     def listener_callback(self, msg):
         self.SIDE = self.get_parameter('side').get_parameter_value().integer_value
-        self.VELOCITY = self.get_parameter('velocity').get_parameter_value().double_value
+        self.VELOCITY = 0.25 #self.get_parameter('velocity').get_parameter_value().double_value
         self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
         self.laserScan = msg
 
@@ -133,6 +133,7 @@ class WallFollower(Node):
         #self.get_logger().info("steer " + str(steer))
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.laserScan.header.frame_id
+        self.get_logger().info('velocity'+str(self.VELOCITY))
         msg.drive.speed = self.VELOCITY #* 1.3 * max(0.5, 1 - 0.1 * error ** 2)
         msg.drive.steering_angle = self.steering_angle
         self.publisher_.publish(msg)
@@ -150,10 +151,11 @@ class WallFollower(Node):
         middle_len = 20
 
         #regions for other slices 
-        right_start = 0
+        cutout = int(0.26 // self.laserScan.angle_increment)
+        right_start = cutout
         right_end = (length - middle_len) // 2
         left_start = right_end + middle_len
-        left_end = length
+        left_end = length-cutout
 
         # Extract left and right ranges
         left_range = ranges[left_start:left_end]
@@ -169,7 +171,7 @@ class WallFollower(Node):
 
     def closest_spot(self, range, min_angle, groups):
         ranges = np.array(range)
-        ranges = self.clean_data(ranges, 0.15)
+        ranges = self.clean_data(ranges, 0.2)
         # Find the indices of the start of each group consecutive values
         start_indices = np.arange(len(ranges) - (groups-1))
 
@@ -197,7 +199,7 @@ class WallFollower(Node):
         mask = arr < threshold
         # Create an array containing the values that will be replaced
         replaced_values = arr[mask]
-        self.get_logger().info('replaced'+str(replaced_values))
+        #self.get_logger().info('replaced'+str(replaced_values))
         # Replace values below the threshold with the value next to it
         #arr[mask] = np.roll(arr, 1)[mask]
          # Replace values below the threshold with the input replacement value
