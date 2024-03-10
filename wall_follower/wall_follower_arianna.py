@@ -69,7 +69,7 @@ class WallFollower(Node):
     # TODO: Write your callback functions here  
     def listener_callback(self, msg):
         self.SIDE = self.get_parameter('side').get_parameter_value().integer_value
-        self.VELOCITY = 0.75 #self.get_parameter('velocity').get_parameter_value().double_value
+        self.VELOCITY = 0.0 #self.get_parameter('velocity').get_parameter_value().double_value
         self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
         self.laserScan = msg
 
@@ -84,12 +84,10 @@ class WallFollower(Node):
         self.lwall_m, self.lwall_c, lx, ly = self.fit_wall(lmin_values, lmin_angles)
         self.mwall_m, self.mwall_c, mx, my = self.fit_wall(mmin_values, mmin_angles)
 
-        #self.get_logger().info('minimum angle'+str(min(rmin_angle)))
-        #self.get_logger().info('max angle'+str(max(rmin_angle)))
+        self.get_logger().info('minimum angle'+str(min(rmin_angle)))
+        self.get_logger().info('max angle'+str(max(rmin_angle)))
 
         dist = self.slice_and_plot(self.laserScan)
-        self.get_logger().info('dist'+str(dist))
-
         
         # #visualize line of side we are supposed to be on
         # if self.SIDE > 0: #left side
@@ -114,10 +112,10 @@ class WallFollower(Node):
         error = abs(dist) - self.DESIRED_DISTANCE
 
         wall_close = np.mean(mmin_values)
-        if wall_close < 1.5: #check if theres a wall in front of you
-            self.get_logger().info('WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL')
+        #if wall_close < 1.5: #check if theres a wall in front of you
+            #self.get_logger().info('WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL')
             #self.get_logger().info('original error' + str(error))
-            error = error - wall_close
+         #   error = error - wall_close
             #self.get_logger().info('new error' + str(error))
 
 
@@ -142,7 +140,7 @@ class WallFollower(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.laserScan.header.frame_id
         #self.get_logger().info('array size'+str(len(self.laserScan.ranges)))
-        msg.drive.speed = self.VELOCITY * max(0.5, 1 - 0.1 * error ** 2) * 0.7
+        msg.drive.speed = self.VELOCITY #* 1.3 * max(0.5, 1 - 0.1 * error ** 2)
         msg.drive.steering_angle = self.steering_angle
         self.publisher_.publish(msg)
         #self.get_logger().info('Steering Angle: "%s"' % msg.drive.steering_angle)
@@ -150,9 +148,8 @@ class WallFollower(Node):
     
     def slice_and_plot(self, msg):
         ## slice
-        min_angle = math.pi*2/3
         ranges = np.clip(np.array(msg.ranges), msg.range_min, msg.range_max)
-        lower, upper = min(self.SIDE*math.pi/6, self.SIDE*min_angle), max(self.SIDE*math.pi/6, self.SIDE*min_angle)
+        lower, upper = min(self.SIDE*math.pi/6, self.SIDE*1/2*math.pi), max(self.SIDE*math.pi/6, self.SIDE*1/2*math.pi)
         li, ui = int((lower - msg.angle_min) / msg.angle_increment), int((upper - msg.angle_min) / msg.angle_increment)
         bounded = min(max(li + np.argmin(ranges[li:ui]) - self.SIDE * 22, 0), len(ranges)-1)
         li_new = min(li + np.argmin(ranges[li:ui]), bounded)
