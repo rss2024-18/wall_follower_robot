@@ -21,7 +21,7 @@ class SafetyControllerTest(Node):
 
         drive_msg.header.stamp = self.get_clock().now().to_msg()
         #Change this speed to change the speed of the car during tests
-        drive_msg.drive.speed = 1.0
+        drive_msg.drive.speed = 2.0
         drive_msg.drive.steering_angle = 0.0
         self.get_logger().info(str("Driving 0"))
 

@@ -171,29 +171,6 @@ class WallFollower(Node):
 
         return (right_range, middle_range, left_range, rmin_ang, mmin_ang, lmin_ang)
 
-    def ransac(self,X, y, n_iterations=100, sample_size=20, inlier_threshold=1.0):
-        
-        best_mod = None
-        best_inliers = None
-        max_inliers = 0
-
-        for _ in range(n_iterations):
-            random_indices = random.sample(range(len(X)), sample_size)
-            x_sam = X[random_indices]
-            y_sam = y[random_indices]
-
-            model = np.polyfit(x_sam, y_sam, 1)
-
-            residuals = np.abs(y - np.polyval(model, X))
-            inliers = np.where(residuals < inlier_threshold)[0]
-
-            if len(inliers) > max_inliers:
-                max_inliers = len(inliers)
-                best_mod = model
-                best_inliers = inliers
-
-        return best_mod, best_inliers
-
     def closest_spot(self, range, min_angle, groups):
         ranges = np.array(range)
         # Find the indices of the start of each group consecutive values
