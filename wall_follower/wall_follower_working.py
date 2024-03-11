@@ -7,7 +7,6 @@ from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
 from visualization_msgs.msg import Marker
-from std_msgs.msg import Float32
 
 from wall_follower.visualization_tools import VisualizationTools
 
@@ -32,7 +31,6 @@ class WallFollower(Node):
 
         self.lastm = 0.0
         self.lastlastm = 0.0
-        self.time = 0.0 
 
         # Declare parameters to make them available for use
         self.declare_parameter("scan_topic", "default")
@@ -48,9 +46,6 @@ class WallFollower(Node):
         self.VELOCITY = self.get_parameter('velocity').get_parameter_value().double_value
         self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
         self.WALL_TOPIC = "/wall"
-        self.WALL_TOPIC_PUB = "/walldist"
-        self.STEER_TOPIC = "/steering"
-        self.DES_DIST_TOPIC = "/desdist" 
 
 	    # TODO: Initialize your publishers and subscribers here
         self.subscription = self.create_subscription(
@@ -65,11 +60,6 @@ class WallFollower(Node):
         # a publisher for our line marker
         self.line_pub = self.create_publisher(Marker, self.WALL_TOPIC, 1)
 
-        #publishers for rosbag
-        self.line_pub = self.create_publisher(Float32, self.WALL_TOPIC_PUB, 1)
-        self.steer_pub = self.create_publisher(Float32, self.STEER_TOPIC, 1)
-        self.dist_pub = self.create_publisher(Float32, self.DES_DIST_TOPIC, 1)
-
         timer_period = 0.01 #seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
@@ -78,21 +68,14 @@ class WallFollower(Node):
 
     # TODO: Write your callback functions here  
     def listener_callback(self, msg):
-        self.SIDE = -1#self.get_parameter('side').get_parameter_value().integer_value
-        self.VELOCITY = 1.0 #self.get_parameter('velocity').get_parameter_value().double_value
-        #self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
+        self.SIDE = self.get_parameter('side').get_parameter_value().integer_value
+        self.VELOCITY = 0.75 #self.get_parameter('velocity').get_parameter_value().double_value
+        self.DESIRED_DISTANCE = self.get_parameter('desired_distance').get_parameter_value().double_value
         self.laserScan = msg
 
         #self.get_logger().info('HEARD ANYTHING')
     
     def timer_callback(self):
-        #switch side
-        self.time = self.time + 0.01
-        if self.time < 1:
-            self.DESIRED_DISTANCE = 0.5
-        else:
-            self.DESIRED_DISTANCE = 1.5
-
         right_range, middle_range, left_range, rmin_angle, mmin_angle, lmin_angle = self.slice_ranges()
         rmin_values, rmin_angles = self.closest_spot(right_range, rmin_angle, 70)
         lmin_values, lmin_angles = self.closest_spot(left_range, lmin_angle, 70)
@@ -105,7 +88,6 @@ class WallFollower(Node):
         #self.get_logger().info('max angle'+str(max(rmin_angle)))
 
         dist = self.slice_and_plot(self.laserScan)
-        self.get_logger().info('desdist'+str(self.DESIRED_DISTANCE))
         self.get_logger().info('dist'+str(dist))
 
         
@@ -132,7 +114,7 @@ class WallFollower(Node):
         error = abs(dist) - self.DESIRED_DISTANCE
 
         wall_close = np.mean(mmin_values)
-        if wall_close < 1.5: #check if theres a wall in front of you
+        if wall_close < 2.0: #check if theres a wall in front of you
             self.get_logger().info('WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL WALL')
             #self.get_logger().info('original error' + str(error))
             error = error - wall_close
@@ -155,18 +137,6 @@ class WallFollower(Node):
         elif abs(steer) > 0.34 and steer < 0:
             steer = -0.34
 
-        msg1 = Float32()
-        msg1.data = self.DESIRED_DISTANCE
-        self.dist_pub.publish(msg1)
-
-        msg2 = Float32()
-        msg2.data = abs(dist)
-        self.line_pub.publish(msg2)
-
-        msg3 = Float32()
-        msg3.data = steer
-        self.steer_pub.publish(msg3)
-
         self.steering_angle = steer
         #self.get_logger().info("steer " + str(steer))
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -180,7 +150,7 @@ class WallFollower(Node):
     
     def slice_and_plot(self, msg):
         ## slice
-        min_angle = math.pi*2/3
+        min_angle = math.pi*1/3
         ranges = np.clip(np.array(msg.ranges), msg.range_min, msg.range_max)
         lower, upper = min(self.SIDE*math.pi/6, self.SIDE*min_angle), max(self.SIDE*math.pi/6, self.SIDE*min_angle)
         li, ui = int((lower - msg.angle_min) / msg.angle_increment), int((upper - msg.angle_min) / msg.angle_increment)
@@ -196,7 +166,7 @@ class WallFollower(Node):
         A = np.vstack([x, np.ones(len(x))]).T
         m, b = np.linalg.lstsq(A, y)[0]
         y_wall = m * x + b
-        #VisualizationTools.plot_line(-x, y_wall, self.line_pub, frame="/laser")
+        VisualizationTools.plot_line(-x, y_wall, self.line_pub, frame="/laser")
 
         ## gets the distance
         wall_end1, wall_end2, robot = np.array([x[0], y[0]]), np.array([x[-1], y[-1]]), np.array([0, 0])
