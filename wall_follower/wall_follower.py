@@ -184,10 +184,10 @@ class WallFollower(Node):
         ranges = np.clip(np.array(msg.ranges), msg.range_min, msg.range_max)
         lower, upper = min(self.SIDE*math.pi/6, self.SIDE*min_angle), max(self.SIDE*math.pi/6, self.SIDE*min_angle)
         li, ui = int((lower - msg.angle_min) / msg.angle_increment), int((upper - msg.angle_min) / msg.angle_increment)
-        bounded = min(max(li + np.argmin(ranges[li:ui]) - self.SIDE * 22, 0), len(ranges)-1)
-        li_new = min(li + np.argmin(ranges[li:ui]), bounded)
-        ui_new = max(li + np.argmin(ranges[li:ui]), bounded)
-        li, ui = li_new, ui_new
+        # bounded = min(max(li + np.argmin(ranges[li:ui]) - self.SIDE * 22, 0), len(ranges)-1)
+        # li_new = min(li + np.argmin(ranges[li:ui]), bounded)
+        # ui_new = max(li + np.argmin(ranges[li:ui]), bounded)
+        # li, ui = li_new, ui_new
         ranges_sliced = ranges[li:ui]
         angles_sliced = np.linspace(math.pi/2 - (li*msg.angle_increment - msg.angle_min), math.pi/2 - (ui*msg.angle_increment - msg.angle_min), ui-li)
         x, y = ranges_sliced * np.cos(angles_sliced), ranges_sliced * np.sin(angles_sliced)
